@@ -1,0 +1,15 @@
+# Ignore virtual environment folder
+.venv/
+venv/
+
+# Ignore Python compiled files
+__pycache__/
+*.pyc
+
+# Ignore saved plots and data files
+/static/*.png
+/data/
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
