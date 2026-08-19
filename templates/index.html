@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPrediction App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        :root {
+            --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-input: #111827;
+            --text-main: #f8fafc; --text-muted: #94a3b8;
+            --border-color: #334155; --chart-grid: #334155;
+            --success: #22c55e; --danger: #ef4444; --warning: #eab308;
+            --active-theme: #3b82f6; 
+        }
+
+        .theme-light {
+            --bg-primary: #f8fafc; --bg-secondary: #ffffff; --bg-input: #f1f5f9;
+            --text-main: #0f172a; --text-muted: #64748b;
+            --border-color: #e2e8f0; --chart-grid: #e2e8f0;
+        }
+
+        body { background-color: var(--bg-primary); color: var(--text-main); font-family: 'Inter', sans-serif; transition: 0.3s; }
+        
+        .card { 
+            background-color: var(--bg-secondary); 
+            border: 1px solid var(--border-color); 
+            border-radius: 16px; 
+            box-shadow: 0 4px 20px -2px rgba(0,0,0,0.2); 
+            transition: border-color 0.4s ease, box-shadow 0.4s ease;
+            color: var(--text-main); 
+        }
+        .card.active-theme-glow {
+            border-color: var(--active-theme);
+            box-shadow: 0 0 15px 0 var(--active-theme);
+        }
+
+        .form-control, .form-select { background-color: var(--bg-input); color: var(--text-main); border-color: var(--border-color); }
+        .form-control:focus, .form-select:focus { border-color: var(--active-theme); box-shadow: 0 0 5px var(--active-theme); }
+        .btn-primary { background-color: var(--active-theme); border: none; font-weight: 600; border-radius: 8px; transition: 0.3s;}
+        .btn-primary:hover { opacity: 0.8; }
+        
+        #mainChart { height: 400px; width: 100%; }
+        
+        .text-main { color: var(--text-main) !important; }
+        .text-muted { color: var(--text-muted) !important; }
+        
+        /* Added !important to protect colors from Bootstrap table overrides */
+        .pos-change { color: var(--success) !important; font-weight: bold; } 
+        .neg-change { color: var(--danger) !important; font-weight: bold; }
+        .hold-change { color: var(--warning) !important; font-weight: bold; }
+        
+        #themeToggleBtn { background: none; border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; font-size: 0.8rem; }
+        
+        .trending-box { border-bottom: 1px solid var(--border-color); padding: 12px 0; }
+        .trending-box:last-child { border-bottom: none; }
+        .model-badge { background-color: transparent; color: var(--active-theme); border: 1px solid var(--active-theme); padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; transition: 0.3s;}
+        
+        /* FIXED TABLE CSS: Forces Bootstrap to respect your Dark/Light theme */
+        .table { --bs-table-bg: transparent; margin-bottom: 0; }
+        .table th, .table td {
+            background-color: transparent !important;
+            border-bottom-color: var(--border-color);
+            color: var(--text-main); 
+            vertical-align: middle;
+        }
+        .table thead th {
+            color: var(--text-muted) !important;
+            border-bottom: 2px solid var(--active-theme) !important;
+            transition: border-color 0.3s;
+        }
+        .table-hover > tbody > tr:hover > * {
+            background-color: rgba(150, 150, 150, 0.05) !important;
+        }
+        
+        .recommendation-box { background-color: rgba(150, 150, 150, 0.05); border-left: 4px solid var(--active-theme); padding: 15px; border-radius: 0 8px 8px 0; margin-top: 20px; font-size: 0.9rem; transition: 0.3s;}
+        
+        /* NEW: Gorgeous Vote Card Styling for Light & Dark Mode */
+        .vote-card {
+            background-color: var(--bg-input) !important;
+            border: 2px solid var(--active-theme) !important;
+            box-shadow: 0 8px 25px -5px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="py-4">
+    <div class="container">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold mb-0">Stock<span id="logoTheme" style="color: var(--active-theme); transition: 0.3s;">Prediction</span></h3>
+            <button id="themeToggleBtn" class="px-3 py-1">Toggle Theme</button>
+        </div>
+
+        <div class="card p-3 mb-4" id="controlCard">
+            <form id="predictForm" class="row g-2 align-items-center">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" id="tickerInput" placeholder="Enter Ticker (e.g. AAPL, NVDA)" required>
+                </div>
+                <div class="col-md-5">
+                    <select class="form-select" id="modelSelect">
+                        <option value="LSTM">Deep Learning Sequence (LSTM)</option>
+                        <option value="XGBoost">Gradient Boosting (XGBoost)</option>
+                        <option value="ARIMA">Statistical Trend (ARIMA)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100" id="submitBtn">
+                        <span class="spinner-border spinner-border-sm me-2 d-none" id="spinner" role="status"></span>
+                        Analyze Stock
+                    </button>
+                </div>
+            </form>
+            <div id="errorAlert" class="alert alert-danger mt-3 mb-0 d-none text-center fw-bold"></div>
+        </div>
+
+        <div id="dashboard" class="d-none">
+            <div class="row g-4">
+                
+                <div class="col-lg-8">
+                    <div class="card p-4 h-100 active-theme-glow" id="chartCard">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h2 class="fw-bold mb-0 text-main" id="uiTicker">--</h2>
+                                <h3 class="mb-0 text-main" id="uiPrice">--</h3>
+                                <div id="uiChange">--</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="model-badge" id="uiModelName">--</span>
+                            </div>
+                        </div>
+                        <div id="mainChart"></div>
+
+                        <div class="mt-4 pt-3 border-top border-theme">
+                            <h5 class="fw-bold mb-3"><span style="color: var(--active-theme);">✦</span> Aggregate Model Consensus</h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Model Architecture</th>
+                                            <th>Historical Accuracy</th>
+                                            <th>Projected Shift</th>
+                                            <th>Web Sentiment (NLP)</th>
+                                            <th>Action Signal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="consensusTableBody">
+                                        </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="recommendation-box text-muted">
+                            <h6 class="text-main fw-bold">System Strategy Recommendation:</h6>
+                            <ul class="mb-0 ps-3 text-main">
+                                <li class="mb-1">Use <strong>XGBoost</strong> as your main model (especially with technical indicators, volume, and news‑based features).</li>
+                                <li class="mb-1">Add <strong>LSTM</strong> as a secondary model or in a hybrid stack (e.g., ARIMA residuals + LSTM, or XGBoost features + LSTM) to capture non‑linear trends that XGBoost may miss.</li>
+                                <li>Keep <strong>ARIMA</strong> as a sanity check baseline and for simpler, more interpretable scenarios.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    
+                    <div class="card p-4 mb-4 text-center">
+                        <h6 class="text-muted text-uppercase fw-bold mb-0">Selected Model Signal</h6>
+                        <div class="small text-muted mb-2">Based on 30-Day Forecast</div>
+                        <div id="signalGauge"></div>
+                        <h4 class="fw-bold" id="signalText" style="margin-top: -20px;">--</h4>
+                        <div class="small text-muted">Growth: <span id="projectedGrowth" class="fw-bold">--</span></div>
+                    </div>
+
+                    <div class="card p-4 mb-4 text-center vote-card">
+                        <h6 class="text-muted text-uppercase fw-bold mb-2">Majority Vote Verdict</h6>
+                        <div class="h1 fw-bold mb-0" id="finalVoteText">--</div>
+                        <div class="small text-muted mt-2">Based on 3-Model Aggregation & Sentiment</div>
+                    </div>
+
+                    <div class="card p-4">
+                        <h6 class="text-muted text-uppercase fw-bold mb-3">Trending Alternatives</h6>
+                        <div id="trendingList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let priceChart = null;
+        let gaugeChart = null;
+
+        const body = document.body;
+        const toggleBtn = document.getElementById('themeToggleBtn');
+        if (localStorage.getItem('theme') === 'light') body.classList.add('theme-light');
+        
+        toggleBtn.addEventListener('click', () => {
+            body.classList.toggle('theme-light');
+            localStorage.setItem('theme', body.classList.contains('theme-light') ? 'light' : 'dark');
+            if(window.currentData) renderUI(window.currentData); 
+        });
+
+        const getCssVar = (name) => getComputedStyle(document.body).getPropertyValue(name).trim();
+
+        document.getElementById('predictForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+            const btn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('spinner');
+            const errorAlert = document.getElementById('errorAlert');
+            const dashboard = document.getElementById('dashboard');
+
+            btn.disabled = true; spinner.classList.remove('d-none');
+            errorAlert.classList.add('d-none'); dashboard.classList.add('d-none');
+
+            try {
+                const res = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        ticker: document.getElementById('tickerInput').value,
+                        model: document.getElementById('modelSelect').value 
+                    })
+                });
+                
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Server Error");
+
+                window.currentData = data;
+                renderUI(data);
+                dashboard.classList.remove('d-none');
+
+            } catch (err) {
+                errorAlert.textContent = err.message;
+                errorAlert.classList.remove('d-none');
+            } finally {
+                btn.disabled = false; spinner.classList.add('d-none');
+            }
+        });
+
+        function renderUI(data) {
+            document.documentElement.style.setProperty('--active-theme', data.theme_color);
+
+            document.getElementById('uiTicker').textContent = data.ticker;
+            document.getElementById('uiPrice').textContent = data.current_price;
+            
+            const changeEl = document.getElementById('uiChange');
+            changeEl.textContent = "Past 24h: " + data.change_pct;
+            changeEl.className = data.change_pct.includes('-') ? 'neg-change' : 'pos-change';
+            
+            document.getElementById('uiModelName').textContent = data.model;
+            document.getElementById('signalText').textContent = data.signal_text;
+            document.getElementById('signalText').style.color = data.signal_color;
+            document.getElementById('projectedGrowth').textContent = data.projected_growth;
+            document.getElementById('projectedGrowth').style.color = data.signal_color;
+
+            const voteEl = document.getElementById('finalVoteText');
+            voteEl.textContent = "🔥 " + data.final_vote;
+            voteEl.style.color = data.vote_color;
+
+            const tbody = document.getElementById('consensusTableBody');
+            tbody.innerHTML = '';
+            data.consensus.forEach(row => {
+                let sigClass = row.signal === 'Buy' ? 'pos-change' : (row.signal === 'Sell' ? 'neg-change' : 'hold-change');
+                let groClass = row.growth.includes('-') ? 'neg-change' : 'pos-change';
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${row.name}</td>
+                        <td>${row.accuracy}</td>
+                        <td class="${groClass}">${row.growth}</td>
+                        <td class="text-muted">${row.sentiment}</td>
+                        <td class="${sigClass}">${row.signal}</td>
+                    </tr>
+                `;
+            });
+
+            const trendContainer = document.getElementById('trendingList');
+            trendContainer.innerHTML = '';
+            data.trending.forEach(stock => {
+                trendContainer.innerHTML += `
+                    <div class="d-flex justify-content-between align-items-center trending-box">
+                        <div>
+                            <div class="fw-bold text-main">${stock.sym}</div>
+                            <div class="small text-muted">${stock.name}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold text-main">$${stock.price}</div>
+                            <div class="small ${stock.color}">${stock.change}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const chartMode = body.classList.contains('theme-light') ? 'light' : 'dark';
+            const mainOptions = {
+                series: [
+                    { name: 'Candle', type: 'candlestick', data: data.historical },
+                    { name: 'MA(25)', type: 'line', data: data.maData },
+                    { name: `${data.model} Forecast`, type: 'line', data: data.forecast }
+                ],
+                chart: { type: 'line', height: 380, toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false } },
+                theme: { mode: chartMode },
+                plotOptions: { candlestick: { colors: { upward: getCssVar('--success'), downward: getCssVar('--danger') }}},
+                stroke: { width: [1, 2, 3], dashArray: [0, 0, 5], colors: [undefined, '#94a3b8', data.theme_color] },
+                grid: { borderColor: getCssVar('--chart-grid') },
+                xaxis: { type: 'datetime', tooltip: { enabled: false } },
+                yaxis: { labels: { formatter: (val) => "$" + val.toFixed(0) } },
+                legend: { position: 'top', horizontalAlign: 'right' }
+            };
+
+            if(priceChart) priceChart.destroy();
+            priceChart = new ApexCharts(document.querySelector("#mainChart"), mainOptions);
+            priceChart.render();
+
+            const gaugeOptions = {
+                series: [data.signal_val],
+                chart: { type: 'radialBar', height: 250, animations: { enabled: true } },
+                plotOptions: {
+                    radialBar: {
+                        startAngle: -135, endAngle: 135,
+                        hollow: { size: '60%' },
+                        track: { background: getCssVar('--chart-grid'), strokeWidth: '100%' },
+                        dataLabels: {
+                            name: { show: false },
+                            value: { fontSize: '24px', fontWeight: 'bold', color: getCssVar('--text-main'), formatter: function (val) { return val + "%" } }
+                        }
+                    }
+                },
+                fill: { colors: [data.signal_color] },
+                stroke: { lineCap: 'round' }
+            };
+
+            if(gaugeChart) gaugeChart.destroy();
+            gaugeChart = new ApexCharts(document.querySelector("#signalGauge"), gaugeOptions);
+            gaugeChart.render();
+        }
+    </script>
+</body>
+</html>
