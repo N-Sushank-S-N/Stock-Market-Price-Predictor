@@ -141,7 +141,7 @@
                                             <th>Model Architecture</th>
                                             <th>Historical Accuracy</th>
                                             <th>Projected Shift</th>
-                                            <th>Web Sentiment (NLP)</th>
+                                            <th>Sentiment (not integrated)</th>
                                             <th>Action Signal</th>
                                         </tr>
                                     </thead>
@@ -152,11 +152,11 @@
                         </div>
                         
                         <div class="recommendation-box text-muted">
-                            <h6 class="text-main fw-bold">System Strategy Recommendation:</h6>
+                            <h6 class="text-main fw-bold">How to read this table:</h6>
                             <ul class="mb-0 ps-3 text-main">
-                                <li class="mb-1">Use <strong>XGBoost</strong> as your main model (especially with technical indicators, volume, and news‑based features).</li>
-                                <li class="mb-1">Add <strong>LSTM</strong> as a secondary model or in a hybrid stack (e.g., ARIMA residuals + LSTM, or XGBoost features + LSTM) to capture non‑linear trends that XGBoost may miss.</li>
-                                <li>Keep <strong>ARIMA</strong> as a sanity check baseline and for simpler, more interpretable scenarios.</li>
+                                <li class="mb-1"><strong>RMSE</strong> is measured on the last 30 days only (one window), so treat it as indicative, not conclusive.</li>
+                                <li class="mb-1"><strong>Dir</strong> is the share of days where the forecast moved the same way as the actual price.</li>
+                                <li>The sentiment column is a placeholder; no sentiment data is used in the vote.</li>
                             </ul>
                         </div>
                     </div>
@@ -175,11 +175,11 @@
                     <div class="card p-4 mb-4 text-center vote-card">
                         <h6 class="text-muted text-uppercase fw-bold mb-2">Majority Vote Verdict</h6>
                         <div class="h1 fw-bold mb-0" id="finalVoteText">--</div>
-                        <div class="small text-muted mt-2">Based on 3-Model Aggregation & Sentiment</div>
+                        <div class="small text-muted mt-2">Based on 3-Model Majority Vote</div>
                     </div>
 
                     <div class="card p-4">
-                        <h6 class="text-muted text-uppercase fw-bold mb-3">Trending Alternatives</h6>
+                        <h6 class="text-muted text-uppercase fw-bold mb-3">Trending Alternatives (static demo data)</h6>
                         <div id="trendingList"></div>
                     </div>
                 </div>
